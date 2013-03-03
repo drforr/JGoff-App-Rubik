@@ -43,9 +43,9 @@ Perhaps a little code snippet.
 
 =cut
 
-# {{{ _vector_sum( $A, $B )
+# {{{ _v_sum( $A, $B )
 
-sub _vector_sum {
+sub _v_sum {
   my $self = shift;
   my ( $A, $B ) = @_;
   return [
@@ -57,9 +57,9 @@ sub _vector_sum {
 
 # }}}
 
-# {{{ _vector_difference( $A, $B )
+# {{{ _v_difference( $A, $B )
 
-sub _vector_difference {
+sub _v_difference {
   my $self = shift;
   my ( $A, $B ) = @_;
   return [
@@ -71,9 +71,9 @@ sub _vector_difference {
 
 # }}}
 
-# {{{ _vector_multiply( $A, $value )
+# {{{ _v_multiply( $A, $value )
 
-sub _vector_multiply {
+sub _v_multiply {
   my $self = shift;
   my ( $A, $value ) = @_;
   return [
@@ -85,9 +85,37 @@ sub _vector_multiply {
 
 # }}}
 
-# {{{ _vector_abs( $A )
+# {{{ _v_vector_multiply( $A, $B )
 
-sub _vector_abs {
+sub _v_v_multiply {
+  my $self = shift;
+  my ( $A, $B ) = @_;
+  return [
+    $A->[$X] * $B->[$X],
+    $A->[$Y] * $B->[$Y],
+    $A->[$Z] * $B->[$Z],
+  ]
+}
+
+# }}}
+
+# {{{ _v_divide( $A, $value )
+
+sub _v_divide {
+  my $self = shift;
+  my ( $A, $value ) = @_;
+  return [
+    $A->[$X] / $value,
+    $A->[$Y] / $value,
+    $A->[$Z] / $value,
+  ]
+}
+
+# }}}
+
+# {{{ _v_abs( $A )
+
+sub _v_abs {
   my $self = shift;
   my ( $A ) = @_;
   return [
@@ -107,7 +135,7 @@ sub _lerp {
   my $self = shift;
   my ( $l, $r ) = @_;
 
-  my $d = $self->_vector_abs( $self->_vector_difference( $r, $l ) );
+  my $d = $self->_v_abs( $self->_v_difference( $l, $r ) );
 
   my $edge = [
     1.0 - ( 2 * $self->spacing ),
@@ -115,11 +143,12 @@ sub _lerp {
     1.0 - ( 2 * $self->spacing ),
   ];
 
-  $edge->[$X] = ( $edge->[$X] / 3 ) * $d->[$X];
-  $edge->[$Y] = ( $edge->[$Y] / 3 ) * $d->[$Y];
-  $edge->[$Z] = ( $edge->[$Z] / 3 ) * $d->[$Z];
+  $edge = $self->_v_v_multiply(
+    $self->_v_divide( $edge, 3 ),
+    $d
+  );
 
-  my $spacing = $self->_vector_multiply( $d, $self->spacing );
+  my $spacing = $self->_v_multiply( $d, $self->spacing );
 
   $spacing->[$X] = -$spacing->[$X] if $l->[$X] > $r->[$X];
   $spacing->[$Y] = -$spacing->[$Y] if $l->[$Y] > $r->[$Y];
@@ -130,12 +159,10 @@ sub _lerp {
   $edge->[$Z] = -$edge->[$Z] if $l->[$Z] > $r->[$Z];
 
   my @edge;
-  push @edge, [ @$l ];
-  push @edge, $self->_vector_sum( $edge[0], $edge );
-  push @edge, $self->_vector_sum( $edge[1], $spacing );
-  push @edge, $self->_vector_sum( $edge[2], $edge );
-  push @edge, $self->_vector_sum( $edge[3], $spacing );
-  push @edge, [ @$r ];
+  push @edge, $self->_v_sum( $l, $edge );
+  push @edge, $self->_v_sum( $edge[0], $spacing );
+  push @edge, $self->_v_sum( $edge[1], $edge );
+  push @edge, $self->_v_sum( $edge[2], $spacing );
 
   return @edge;
 }
@@ -145,6 +172,14 @@ sub _lerp {
 sub generate {
 }
 
+# {{{ facets
+#
+#   4 -- 5
+#  /|   /|
+# 0 -- 1 |
+# | 6 -| 7
+# |/   |/
+# 2 -- 3
 #
 #  0  1    2  3    4  5
 #  6  7    8  9   10 11
@@ -176,19 +211,26 @@ sub facets {
     [ 28, 29, 35, 34 ],
   );
 
-#
-# What's really needed is actually a way to feed in this array, and say
-#
-# lerp between (0,0) and (5,0); ...
+  my @v02 = $self->_lerp( $v->[0], $v->[2] );
+  my @v13 = $self->_lerp( $v->[1], $v->[3] );
 
-my @plane_verts = (
-  [ $v->[0],  [ 0.9, 0.0 ],[ 1.1, 0.0 ],[ 2.0, 0.0 ],[ 2.2, 0.0 ], $v->[1]    ],
-  [[ 0, 0.9 ],[ 0.9, 0.9 ],[ 1.1, 0.9 ],[ 2.0, 0.9 ],[ 2.2, 0.9 ],[ 3.1, 0.9 ]],
-  [[ 0, 1.1 ],[ 0.9, 1.1 ],[ 1.1, 1.1 ],[ 2.0, 1.1 ],[ 2.2, 1.1 ],[ 3.1, 1.1 ]],
-  [[ 0, 2.0 ],[ 0.9, 2.0 ],[ 1.1, 2.0 ],[ 2.0, 2.0 ],[ 2.2, 2.0 ],[ 3.1, 2.0 ]],
-  [[ 0, 2.2 ],[ 0.9, 2.2 ],[ 1.1, 2.2 ],[ 2.0, 2.2 ],[ 2.2, 2.2 ],[ 3.1, 2.2 ]],
-  [ $v->[2],  [ 0.9, 3.1 ],[ 1.1, 3.1 ],[ 2.0, 3.1 ],[ 2.2, 3.1 ], $v->[3]    ],
-);
+  my @plane_verts;
+  $plane_verts[0][0] = $v->[0];
+  $plane_verts[0][5] = $v->[1];
+  $plane_verts[5][0] = $v->[2];
+  $plane_verts[5][5] = $v->[3];
+
+  for my $idx ( 1 .. 4 ) {
+    $plane_verts[$idx][0] = $v02[$idx - 1];
+    $plane_verts[$idx][5] = $v13[$idx - 1];
+  }
+
+  for my $idx ( 0 .. 5 ) {
+    @{ $plane_verts[$idx] }[ 1 .. 4 ] =
+       $self->_lerp( $plane_verts[$idx][0], $plane_verts[$idx][5] );
+  }
+
+#  @{ $plane_verts[0] }[1 .. 4] = $self->_lerp( $v->[0], $v->[1] );
 
   my @flattened;
   for my $y ( 0 .. 5 ) {
@@ -199,6 +241,117 @@ my @plane_verts = (
 
   return ( \@facets, \@flattened );
 }
+
+# }}}
+
+# {{{ cubies
+#
+#   4 -- 5
+#  /|   /|
+# 0 -- 1 |
+# | 6 -| 7
+# |/   |/
+# 2 -- 3
+#
+#  0  1    2  3    4  5
+#  6  7    8  9   10 11
+#
+#
+# 12 13   14 15   16 17
+# 18 19   20 21   22 23
+#
+#
+# 24 25   26 27   28 29
+# 30 31   32 33   34 35
+#
+
+sub cubies {
+  my $self = shift;
+  my ( $v ) = @_;
+
+  my @facets = (
+    [ 0, 1, 7, 6 ],
+    [ 2, 3, 9, 8 ],
+    [ 4, 5, 11, 10 ],
+
+    [ 12, 13, 19, 18 ],
+    [ 14, 15, 21, 20 ],
+    [ 16, 17, 23, 22 ],
+
+    [ 24, 25, 31, 30 ],
+    [ 26, 27, 33, 32 ],
+    [ 28, 29, 35, 34 ],
+  );
+
+  my @verts = (
+    [ [ $v->[0], undef, undef, undef, undef, $v->[1] ],
+      [ ],
+      [ ],
+      [ ],
+      [ ],
+      [ $v->[2], undef, undef, undef, undef, $v->[3] ] ],
+    [ ],
+    [ ],
+    [ ],
+    [ ],
+    [ [ $v->[4], undef, undef, undef, undef, $v->[5] ],
+      [ ],
+      [ ],
+      [ ],
+      [ ],
+      [ $v->[6], undef, undef, undef, undef, $v->[7] ] ],
+  );
+
+  @{$verts[0][0][1..4]} = $self->lerp( $verts[0][0][0], $verts[0][5][0] );
+
+  my @v02 = $self->_lerp( $v->[0], $v->[2] );
+  my @v13 = $self->_lerp( $v->[1], $v->[3] );
+  my @v46 = $self->_lerp( $v->[4], $v->[6] );
+  my @v57 = $self->_lerp( $v->[5], $v->[7] );
+
+
+  my @v04 = $self->_lerp( $v->[0], $v->[4] );
+  my @v15 = $self->_lerp( $v->[1], $v->[5] );
+  my @v26 = $self->_lerp( $v->[2], $v->[6] );
+  my @v37 = $self->_lerp( $v->[3], $v->[7] );
+  my @plane_verts = (
+    [ [ $v->[0], $self->_lerp( $v->[0], $v->[1] ), $v->[1] ],
+      [ $v02[0], $self->_lerp( $v02[0], $v13[0] ), $v13[0] ],
+      [ $v02[1], $self->_lerp( $v02[1], $v13[1] ), $v13[1] ],
+      [ $v02[2], $self->_lerp( $v02[2], $v13[2] ), $v13[2] ],
+      [ $v02[3], $self->_lerp( $v02[3], $v13[3] ), $v13[3] ],
+      [ $v->[2], $self->_lerp( $v->[2], $v->[3] ), $v->[3] ] ],
+
+    [ [ $v04[0], $self->lerp( $v04[0], $v15[0] ), $v15[0] ],
+      [ $v26[0], $self->lerp( $v26[0], $v37[0] ), $v37[0] ] ],
+
+    [ [ $v04[1], $self->lerp( $v04[1], $v15[1] ), $v15[1] ],
+      [ $v26[1], $self->lerp( $v26[1], $v37[1] ), $v37[1] ] ],
+
+    [ [ $v04[2], $self->lerp( $v04[2], $v15[2] ), $v15[2] ],
+      [ $v26[2], $self->lerp( $v26[2], $v37[2] ), $v37[2] ] ],
+# ...
+    [ [ $v->[4], $self->_lerp( $v->[4], $v->[5] ), $v->[5] ],
+      [ $v46[0], $self->_lerp( $v46[0], $v57[0] ), $v57[0]],
+      [ $v46[1], $self->_lerp( $v46[1], $v57[1] ), $v57[1]],
+      [ $v46[2], $self->_lerp( $v46[2], $v57[2] ), $v57[2]],
+      [ $v46[3], $self->_lerp( $v46[3], $v57[3] ), $v57[3]],
+      [ $v->[6], $self->_lerp( $v->[6], $v->[7] ), $v->[7] ] ],
+  );
+
+  my @flattened;
+  for my $z ( 0 .. 0 ) {
+    for my $y ( 0 .. 5 ) {
+      for my $x ( 0 .. 5 ) {
+        push @flattened, $plane_verts[0][$x][$y];
+      }
+    }
+  }
+
+  return ( \@facets, \@flattened );
+}
+
+# }}}
 
 =head1 AUTHOR
 

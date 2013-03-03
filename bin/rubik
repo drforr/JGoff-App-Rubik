@@ -15,8 +15,8 @@ use OpenGL qw(:all);
 use JGoff::App::Rubik;
 
 Readonly my $TITLE  => 'OpenGL App';
-Readonly my $WIDTH  => 800;
-Readonly my $HEIGHT => 640;
+Readonly my $WIDTH  => 640;
+Readonly my $HEIGHT => 400;
 
 Readonly my $X => 0;
 Readonly my $Y => 1;
@@ -55,7 +55,7 @@ my $rubik = JGoff::App::Rubik->new(
     [ -1, +1, -1 ],
     [ +1, +1, -1 ],
   ],
-  spacing => 0.2,
+  spacing => 0.1,
 );
 
 my ( $vertices, $cubes ) = $rubik->generate;
@@ -199,7 +199,9 @@ my @plane_verts = _plane( [ [ 0, 2 ],
 # 2 -- 3
 
 my ( $facets, $flattened ) = $rubik->facets( [
-  [ 0.0, 0.0 ], [ 3.1, 0.0 ],
+  #[ 0.0, 0.0 ], [ 3.1, 0.0 ],
+  #[ 0.0, 0.0 ], [ 2.2, -0.9 ],
+  [ 0.5, 0.7 ], [ 2.2, -0.9 ],
   [ 0.0, 3.1 ], [ 3.1, 3.1 ]
 ] );
 
@@ -437,14 +439,14 @@ sub handle_polls {
     my $key = ( $type == 2 or $type == 3 ) ? $sdl_event->key_sym : '';
 
     if ( $type == 4 ) {
-      printf "You moved the mouse! x=%s y=%s xrel=%s yrel=%s\n",
-             $sdl_event->motion_x,
-             $sdl_event->motion_y,
-             $sdl_event->motion_xrel,
-             $sdl_event->motion_yrel
+#      printf "You moved the mouse! x=%s y=%s xrel=%s yrel=%s\n",
+#             $sdl_event->motion_x,
+#             $sdl_event->motion_y,
+#             $sdl_event->motion_xrel,
+#             $sdl_event->motion_yrel
     }
-    elsif ( $type == 2 ) { print "You are pressing $key\n" }
-    elsif ( $type == 3 ) { print "You released $key\n" }
+#    elsif ( $type == 2 ) { print "You are pressing $key\n" }
+#    elsif ( $type == 3 ) { print "You released $key\n" }
     elsif ( $type == 12 ) { exit }
     else { print "TYPE $type UNKNOWN!\n" }
 
