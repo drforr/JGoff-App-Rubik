@@ -211,31 +211,29 @@ sub facets {
     [ 28, 29, 35, 34 ],
   );
 
-  my @v02 = $self->_lerp( $v->[0], $v->[2] );
-  my @v13 = $self->_lerp( $v->[1], $v->[3] );
-
   my @plane_verts;
-  $plane_verts[0][0] = $v->[0];
-  $plane_verts[0][5] = $v->[1];
-  $plane_verts[5][0] = $v->[2];
-  $plane_verts[5][5] = $v->[3];
+  $plane_verts[ 0 ][ 0 ] = $v->[ 0 ];
+  $plane_verts[ 0 ][ 5 ] = $v->[ 1 ];
+  $plane_verts[ 5 ][ 0 ] = $v->[ 2 ];
+  $plane_verts[ 5 ][ 5 ] = $v->[ 3 ];
+
+  my @v02 = $self->_lerp( $plane_verts[ 0 ][ 0 ], $plane_verts[ 5 ][ 0 ] );
+  my @v13 = $self->_lerp( $plane_verts[ 0 ][ 5 ], $plane_verts[ 5 ][ 5 ] );
 
   for my $idx ( 1 .. 4 ) {
-    $plane_verts[$idx][0] = $v02[$idx - 1];
-    $plane_verts[$idx][5] = $v13[$idx - 1];
+    $plane_verts[$idx][ 0 ] = $v02[ $idx - 1 ];
+    $plane_verts[$idx][ 5 ] = $v13[ $idx - 1 ];
   }
 
   for my $idx ( 0 .. 5 ) {
-    @{ $plane_verts[$idx] }[ 1 .. 4 ] =
-       $self->_lerp( $plane_verts[$idx][0], $plane_verts[$idx][5] );
+    @{ $plane_verts[ $idx ] }[ 1 .. 4 ] =
+       $self->_lerp( $plane_verts[ $idx ][ 0 ], $plane_verts[ $idx ][ 5 ] );
   }
-
-#  @{ $plane_verts[0] }[1 .. 4] = $self->_lerp( $v->[0], $v->[1] );
 
   my @flattened;
   for my $y ( 0 .. 5 ) {
     for my $x ( 0 .. 5 ) {
-      push @flattened, $plane_verts[$x][$y];
+      push @flattened, $plane_verts[ $x ][ $y ];
     }
   }
 
@@ -253,10 +251,19 @@ sub facets {
 # |/   |/
 # 2 -- 3
 #
-#  0  1    2  3    4  5
+#        144 145 146 147 148 149
+#
+#      108 109 110 111 112 113
+#       /  /    /  /   /  /
+#     72 73   74 75  76 77
+#   
+#   36 37   38 39   40 41
+#   /  /    /  /    /  /|
+#  0  1    2  3    4  5 48
 #  6  7    8  9   10 11
 #
-#
+#   49 50  51 52   53 54
+#   /  /   /  /    /  /
 # 12 13   14 15   16 17
 # 18 19   20 21   22 23
 #
@@ -265,90 +272,164 @@ sub facets {
 # 30 31   32 33   34 35
 #
 
+my @delta = (
+  [ 0, 1, 7, 6 ],
+  [ 36, 42, 43, 37 ],
+  [ 1, 37, 43, 7 ],
+  [ 0, 6, 42, 36 ],
+  [ 0, 36, 37, 1 ],
+  [ 6, 42, 43, 7 ],
+);
+
+sub _to_cubie {
+  my $self = shift;
+  my ( $idx ) = @_;
+  my @temp;
+  for my $face ( 0 .. 5 ) {
+    for my $edge ( 0 .. 3 ) {
+      $temp[$face][$edge] = $delta[$face][$edge] + $idx;
+    }
+  }
+  return \@temp;
+}
+
+#
+# Assumes [ $idx ][ 0 ][ 0 ],
+#         [ $idx ][ 0 ][ 5 ],
+#         [ $idx ][ 5 ][ 0 ],
+#         [ $idx ][ 5 ][ 5 ],
+#
+# are populated.
+#
+sub _lerp_plane {
+  my $self = shift;
+  my ( $cube, $plane ) = @_;
+
+  # [0][0] . . . . [0][5]
+  #    .   . . . .   .
+  #    .   . . . .   .
+  #    .   . . . .   .
+  #    .   . . . .   .
+  # [5][0] . . . . [5][5]
+  my @v01 = $self->_lerp( $cube->[ $plane ][ 0 ][ 0 ],
+                          $cube->[ $plane ][ 0 ][ 5 ] );
+  my @v23 = $self->_lerp( $cube->[ $plane ][ 5 ][ 0 ],
+                          $cube->[ $plane ][ 5 ][ 5 ] );
+
+  for my $idx ( 1 .. 4 ) {
+    $cube->[ $plane ][ 0 ][ $idx ] = $v01[ $idx - 1 ];
+    $cube->[ $plane ][ 5 ][ $idx ] = $v23[ $idx - 1 ];
+  }
+  # [0][0] - - - > [0][5]
+  #    .   . . . .   .
+  #    .   . . . .   .
+  #    .   . . . .   .
+  #    .   . . . .   .
+  # [5][0] - - - > [5][5]
+  for my $idx ( 0 .. 5 ) {
+    my @lerp = $self->_lerp( $cube->[ $plane ][ 0 ][ $idx ],
+                             $cube->[ $plane ][ 5 ][ $idx ] );
+    for my $_idx ( 1 .. 4 ) {
+      $cube->[ $plane ][ $_idx ][ $idx ] = $lerp[ $_idx - 1 ];
+    }
+  }
+
+  # [0][0] X X X X [0][5]
+  #    |   | | | |   |
+  #    |   | | | |   |
+  #    |   | | | |   |
+  #    V   V V V V   V
+  # [5][0] X X X X [5][5]
+}
+
+sub _debug_plane {
+  my ($cube,$plane) = @_;
+
+  for my $y ( 0 .. 5 ) {
+    for my $x ( 0 .. 5 ) {
+      print defined $cube->[$plane][$y][$x] ? 'X' : '.';
+    }
+    print "\n";
+  }
+}
+
 sub cubies {
   my $self = shift;
   my ( $v ) = @_;
 
-  my @facets = (
-    [ 0, 1, 7, 6 ],
-    [ 2, 3, 9, 8 ],
-    [ 4, 5, 11, 10 ],
+  my @corners = (
+    0, 2, 4,
+    12, 14, 16,
+    24, 26, 28,
 
-    [ 12, 13, 19, 18 ],
-    [ 14, 15, 21, 20 ],
-    [ 16, 17, 23, 22 ],
+    72, 74, 76,
+    84, 86, 88,
+    96, 98, 100,
 
-    [ 24, 25, 31, 30 ],
-    [ 26, 27, 33, 32 ],
-    [ 28, 29, 35, 34 ],
+    144, 146, 148,
+    156, 158, 160,
+    168, 170, 172
   );
 
-  my @verts = (
-    [ [ $v->[0], undef, undef, undef, undef, $v->[1] ],
-      [ ],
-      [ ],
-      [ ],
-      [ ],
-      [ $v->[2], undef, undef, undef, undef, $v->[3] ] ],
-    [ ],
-    [ ],
-    [ ],
-    [ ],
-    [ [ $v->[4], undef, undef, undef, undef, $v->[5] ],
-      [ ],
-      [ ],
-      [ ],
-      [ ],
-      [ $v->[6], undef, undef, undef, undef, $v->[7] ] ],
-  );
+  my @cubies;
+  for my $corner ( @corners ) {
+    push @cubies, $self->_to_cubie( $corner );
+  }
 
-  @{$verts[0][0][1..4]} = $self->lerp( $verts[0][0][0], $verts[0][5][0] );
+  my @cube_verts;
+  $cube_verts[ 0 ][ 0 ][ 0 ] = $v->[ 0 ];
+  $cube_verts[ 0 ][ 0 ][ 5 ] = $v->[ 1 ];
+  $cube_verts[ 0 ][ 5 ][ 0 ] = $v->[ 2 ];
+  $cube_verts[ 0 ][ 5 ][ 5 ] = $v->[ 3 ];
 
-  my @v02 = $self->_lerp( $v->[0], $v->[2] );
-  my @v13 = $self->_lerp( $v->[1], $v->[3] );
-  my @v46 = $self->_lerp( $v->[4], $v->[6] );
-  my @v57 = $self->_lerp( $v->[5], $v->[7] );
+  $cube_verts[ 5 ][ 0 ][ 0 ] = $v->[ 4 ];
+  $cube_verts[ 5 ][ 0 ][ 5 ] = $v->[ 5 ];
+  $cube_verts[ 5 ][ 5 ][ 0 ] = $v->[ 6 ];
+  $cube_verts[ 5 ][ 5 ][ 5 ] = $v->[ 7 ];
 
+  $self->_lerp_plane( \@cube_verts, 0 );
+  $self->_lerp_plane( \@cube_verts, 5 );
 
-  my @v04 = $self->_lerp( $v->[0], $v->[4] );
-  my @v15 = $self->_lerp( $v->[1], $v->[5] );
-  my @v26 = $self->_lerp( $v->[2], $v->[6] );
-  my @v37 = $self->_lerp( $v->[3], $v->[7] );
-  my @plane_verts = (
-    [ [ $v->[0], $self->_lerp( $v->[0], $v->[1] ), $v->[1] ],
-      [ $v02[0], $self->_lerp( $v02[0], $v13[0] ), $v13[0] ],
-      [ $v02[1], $self->_lerp( $v02[1], $v13[1] ), $v13[1] ],
-      [ $v02[2], $self->_lerp( $v02[2], $v13[2] ), $v13[2] ],
-      [ $v02[3], $self->_lerp( $v02[3], $v13[3] ), $v13[3] ],
-      [ $v->[2], $self->_lerp( $v->[2], $v->[3] ), $v->[3] ] ],
+  #
+  # Front to back
+  #
+  my @v04 = $self->_lerp( $v->[ 0 ], $v->[ 4 ] );
+  my @v15 = $self->_lerp( $v->[ 1 ], $v->[ 5 ] );
+  my @v26 = $self->_lerp( $v->[ 2 ], $v->[ 6 ] );
+  my @v37 = $self->_lerp( $v->[ 3 ], $v->[ 7 ] );
 
-    [ [ $v04[0], $self->lerp( $v04[0], $v15[0] ), $v15[0] ],
-      [ $v26[0], $self->lerp( $v26[0], $v37[0] ), $v37[0] ] ],
+  for my $idx ( 1 .. 4 ) {
+    $cube_verts[ $idx ][ 0 ][ 5 ] = $v04[ $idx - 1 ];
+    $cube_verts[ $idx ][ 0 ][ 5 ] = $v15[ $idx - 1 ];
+    $cube_verts[ $idx ][ 5 ][ 5 ] = $v26[ $idx - 1 ];
+    $cube_verts[ $idx ][ 5 ][ 5 ] = $v37[ $idx - 1 ];
+  }
 
-    [ [ $v04[1], $self->lerp( $v04[1], $v15[1] ), $v15[1] ],
-      [ $v26[1], $self->lerp( $v26[1], $v37[1] ), $v37[1] ] ],
-
-    [ [ $v04[2], $self->lerp( $v04[2], $v15[2] ), $v15[2] ],
-      [ $v26[2], $self->lerp( $v26[2], $v37[2] ), $v37[2] ] ],
-# ...
-    [ [ $v->[4], $self->_lerp( $v->[4], $v->[5] ), $v->[5] ],
-      [ $v46[0], $self->_lerp( $v46[0], $v57[0] ), $v57[0]],
-      [ $v46[1], $self->_lerp( $v46[1], $v57[1] ), $v57[1]],
-      [ $v46[2], $self->_lerp( $v46[2], $v57[2] ), $v57[2]],
-      [ $v46[3], $self->_lerp( $v46[3], $v57[3] ), $v57[3]],
-      [ $v->[6], $self->_lerp( $v->[6], $v->[7] ), $v->[7] ] ],
-  );
-
-  my @flattened;
-  for my $z ( 0 .. 0 ) {
-    for my $y ( 0 .. 5 ) {
-      for my $x ( 0 .. 5 ) {
-        push @flattened, $plane_verts[0][$x][$y];
+  for my $y ( 0 .. 5 ) {
+    for my $x ( 0 .. 5 ) {
+      my @lerp = $self->_lerp( $cube_verts[ 0 ][ $x ][ $y ],
+                               $cube_verts[ 5 ][ $x ][ $y ] );
+      for my $idx ( 1 .. 4 ) {
+        $cube_verts[ $idx ][ $x ][ $y ] = $lerp[ $idx - 1 ];
       }
     }
   }
+#_debug_plane(\@cube_verts, 4);
+#exit 0;
 
-  return ( \@facets, \@flattened );
+  my @flattened;
+  for my $z ( 0 .. 5 ) {
+    for my $y ( 0 .. 5 ) {
+      for my $x ( 0 .. 5 ) {
+        push @flattened, $cube_verts[ $z ][ $x ][ $y ];
+      }
+    }
+  }
+#use YAML;die Dump(\@flattened);
+#$use YAML;die Dump(\@cubies);
+#$die scalar @cubies;
+
+  return ( \@cubies, \@flattened );
 }
 
 # }}}

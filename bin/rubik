@@ -95,115 +95,29 @@ $|++;
 # interpolate between them to get the faces for 27 cubes.
 #
 
-#
-# First, start off lerp'ing 9 quads
-#
-# Corners here are:
-# ( [ x0, y0 ],
-#   [ x1, y1 ], ...
-#
-sub _plane {
-  my ( $corners, $x_spacing, $y_spacing ) = @_;
-
-  my @panes;
-  #
-  # Use these to make it clear the last dimension is (x,y,z) tuples.
-  #
-
-  #
-  # # Fill in the corners
-  #
-  @{ $panes[0][0] } = @{ $corners->[0] };
-  @{ $panes[5][0] } = @{ $corners->[1] };
-  @{ $panes[0][5] } = @{ $corners->[2] };
-  @{ $panes[5][5] } = @{ $corners->[3] };
-
-  # lerp between right and left
-  my @x01 = _split_edge( $panes[0][0][$X], $panes[5][0][$X], $x_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[$idx][0][$X] = $x01[$idx];
-  }
-  my @x23 = _split_edge( $panes[0][5][$X], $panes[5][5][$X], $x_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[$idx][5][$X] = $x23[$idx];
-  }
-
-  # lerp between top and bottom
-  my @x02 = _split_edge( $panes[0][0][$X], $panes[0][5][$X], $x_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[0][$idx][$X] = $x02[$idx];
-  }
-  my @x13 = _split_edge( $panes[5][0][$X], $panes[5][5][$X], $x_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[5][$idx][$X] = $x02[$idx];
-  }
-
-  # lerp remaining X values
-  for my $idx ( 1 .. 4 ) {
-    my @x01 =
-      _split_edge( $panes[0][$idx][$X], $panes[5][$idx][$X], $x_spacing );
-    for my $_idx ( 1 .. 4 ) {
-      $panes[$idx][$_idx][$X] = $x01[$idx];
-    }
-  }
-
-# Y coordinates now
-
-  # lerp between right and left
-  my @y01 = _split_edge( $panes[0][0][$Y], $panes[5][0][$Y], $y_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[$idx][0][$Y] = $x01[$idx];
-  }
-  my @y23 = _split_edge( $panes[0][5][$Y], $panes[5][5][$Y], $y_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[$idx][5][$Y] = $y23[$idx];
-  }
-
-  # lerp between top and bottom
-  my @y02 = _split_edge( $panes[0][0][$Y], $panes[0][5][$Y], $y_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[0][$idx][$Y] = $y02[$idx];
-  }
-  my @y13 = _split_edge( $panes[5][0][$Y], $panes[5][5][$Y], $y_spacing );
-  for my $idx ( 1 .. 4 ) {
-    $panes[5][$idx][$Y] = $y02[$idx];
-  }
-
-  # lerp remaining Y values
-  for my $idx ( 1 .. 4 ) {
-    my @y01 =
-      _split_edge( $panes[0][$idx][$Y], $panes[5][$idx][$Y], $y_spacing );
-    for my $_idx ( 1 .. 4 ) {
-      $panes[$idx][$_idx][$Y] = $y01[$idx];
-    }
-  }
-
-  return @panes;
-}
-
-#
-#  _-1
-# 0   \
-#  \   \
-#   \ _-3
-#    2
-
-my @plane_verts = _plane( [ [ 0, 2 ],
-                            [ 1, 0 ],
-                            [ 2, 4 ],
-                            [ 3, 3 ] ], 0.2, 0.2 );
-
 # 0 -- 1
 # |    |
 # |    |
 # 2 -- 3
 
 my ( $facets, $flattened ) = $rubik->facets( [
-  #[ 0.0, 0.0 ], [ 3.1, 0.0 ],
-  #[ 0.0, 0.0 ], [ 2.2, -0.9 ],
-  [ 0.5, 0.7 ], [ 2.2, -0.9 ],
-  [ 0.0, 3.1 ], [ 3.1, 3.1 ]
+  [ 0.0, 0.0 ], [ 3.1, 0.0 ],
+  [ 0.0, 0.0 ], [ 2.2, -0.9 ],
 ] );
+
+my ( $cubies, $flattened_faces ) = $rubik->cubies( [
+#  [ 0.0, 0.0, 0.0 ], [ 3.1, 0.0, 0.0 ],
+#  [ 0.0, 0.0, 0.0 ], [ 2.2, -0.9, 0.0 ],
+#  [ 0.0, 0.0, 1.0 ], [ 3.1, 0.0, 1.0 ],
+#  [ 0.0, 0.0, 1.0 ], [ 2.2, -0.9, 1.0 ],
+
+  [ 0, 0, 0 ], [ 10, 0, 0 ],
+  [ 0, 10, 0 ], [ 10, 10, 0 ],
+  [ 0, 0, 10 ], [ 10, 0, 10 ],
+  [ 0, 10, 10 ], [ 10, 10, 10 ],
+] );
+
+#use YAML; die Dump($flattened_faces);
 
 sub draw_facets {
   glBegin(GL_QUADS);
@@ -215,29 +129,17 @@ sub draw_facets {
   glEnd;
 }
 
-# 0-->   1--->  2--->  4--->
-# +---+  +---+  +---+  +---+
-# |   |--|   |--|   |--|   |
-# +---+  +---+  +---+  +---+
-#
-# 26 - ( ( 4 - 1 ) * 2 ) / ( 4 - 1 ) = 5
-#
-# dx - ( ( $num_segments - 1 ) * $spacing ) / ( $num_segments )
-
-sub _split_edge {
-  my ( $x0, $x1, $spacing ) = @_;
-  my $num_segments = 3;
-
-  my $dx = $x1 - $x0;
-#  my $side = $dx - ( ( $num_segments - 1 ) * $spacing ) / ( $num_segments - 1 );
-  my $side = ( $dx - ( 2 * $spacing ) ) / 3;
-
-  my $xa = $x0 + $side;
-  my $xb = $xa + $spacing;
-  my $xc = $xb + $side;
-  my $xd = $xc + $spacing;
-
-  return ( $x0,     $xa, $xb,     $xc, $xd,    $x1 );
+sub draw_cubies {
+  glBegin(GL_QUADS);
+    for my $cubie ( @{ $cubies } ) {
+      for my $facet ( @{ $cubie } ) {
+        for my $idx ( @{ $facet } ) {
+#warn $idx;
+          glVertex3d( @{ $flattened_faces->[ $idx ] } );
+        }
+      }
+    }
+  glEnd;
 }
 
 #                               180 -- 181    182 -- 183    184 -- 185
@@ -258,116 +160,6 @@ sub _split_edge {
 # 24 -- 25    26 -- 27    28 -- 29  71
 #  |     |     |     |     |     | /
 # 30 -- 31    32 -- 33    34 -- 35
-
-my @xy = (
-  [ 0, 1, 7, 6 ],
-  [ 2, 3, 9, 8 ],
-  [ 4, 5, 11, 10 ],
-
-  [ 12, 13, 19, 18 ],
-  [ 14, 15, 21, 20 ],
-  [ 16, 17, 23, 22 ],
-
-  [ 24, 25, 31, 30 ],
-  [ 26, 27, 33, 32 ],
-  [ 28, 29, 35, 34 ],
-);
-
-my @xz = (
-  [ 5, 41, 47, 11 ],
-  [ 77, 113, 119, 83 ],
-  [ 149, 185, 191, 155 ],
-
-  [ 17, 53, 59, 23 ],
-  [ 89, 123, 131, 95 ],
-  [ 161, 197, 203, 167 ],
-
-  [ 29, 65, 71, 35 ],
-  [ 101, 137, 143, 107 ],
-  [ 173, 209, 215, 179 ],
-);
-
-my @yz = (
-  [ 0, 36, 37, 1 ],
-  [ 72, 108, 109, 73 ],
-  [ 144, 180, 181, 145 ],
-
-  [ 2, 39, 39, 3 ],
-  [ 110, 146, 147, 111 ],
-  [ 146, 182, 183, 147 ],
-
-  [ 4, 40, 41, 5 ],
-  [ 76, 112, 113, 77 ],
-  [ 148, 184, 185, 149 ]
-);
-
-my @faces = ();
-for my $depth ( 0 .. 5 ) {
-  for my $xy ( @xy ) {
-    push @faces, [ map { $_ + $depth * 36 } @{ $xy } ];
-  }
-}
-for my $depth ( 0 .. 5 ) {
-  for my $xz ( @xz ) {
-    push @faces, [ map { $_ - $depth } @{ $xz } ];
-  }
-}
-for my $depth ( 0 .. 5 ) {
-  for my $yz ( @yz ) {
-    push @faces, [ map { $_ + ( $depth * 6 ) } @{ $yz } ];
-  }
-}
-
-# {{{ lerp_cube
-
-# X right
-# y down
-# z back
-#
-#    4 -- 5
-# 0 -- 1  |
-# |  | |  |
-# |  6 -- 7
-# 2 -- 3
-
-sub lerp_cube {
-  my ( $vertices, $num_segments, $spacing ) = @_;
-
-  my @cube = ();
-
-  #
-  # Populate the corners in the vertex order described above.
-  #
-  $cube[0][0][0] = [ @{ $vertices->[0] } ];
-  $cube[5][0][0] = [ @{ $vertices->[1] } ];
-  $cube[0][5][0] = [ @{ $vertices->[2] } ];
-  $cube[5][5][0] = [ @{ $vertices->[3] } ];
-  $cube[0][0][5] = [ @{ $vertices->[4] } ];
-  $cube[5][0][5] = [ @{ $vertices->[5] } ];
-  $cube[0][5][5] = [ @{ $vertices->[6] } ];
-  $cube[5][5][5] = [ @{ $vertices->[7] } ];
-
-  my ( $X, $Y, $Z ) = ( 0, 1, 2 );
-
-  my @x01 = _split_line( $cube[0][0][0][$X], $cube[5][0][0][$X], $spacing );
-  for my $idx ( 1 .. 4 ) {
-    $cube[$idx][0][0][$X] = $x01[$idx];
-  }
-  my @x23 = _split_line( $cube[0][5][0][$X], $cube[5][5][0][$X], $spacing );
-  for my $idx ( 1 .. 4 ) {
-    $cube[$idx][0][5][$X] = $x01[$idx];
-  }
-  my @x02 = _split_line( $cube[0][0][0][$X], $cube[0][5][0][$X], $spacing );
-  for my $idx ( 1 .. 4 ) {
-    $cube[0][$idx][0][$X] = $x02[$idx];
-  }
-  my @x13 = _split_line( $cube[5][0][0][$X], $cube[5][5][0][$X], $spacing );
-  for my $idx ( 1 .. 4 ) {
-    $cube[5][$idx][5][$X] = $x13[$idx];
-  }
-}
-
-# }}}
 
 #   1
 #  /|
@@ -420,7 +212,8 @@ sub draw_scene {
         glColor3d( 1, 0, 0 );
         #draw_cube;
         #draw_pane;
-        draw_facets;
+        #draw_facets;
+        draw_cubies;
         glPopMatrix;
 #      }
 #    }
