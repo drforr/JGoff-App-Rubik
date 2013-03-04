@@ -7,11 +7,6 @@ Readonly my $X => 0;
 Readonly my $Y => 1;
 Readonly my $Z => 2;
 
-has corners => (
-  is => 'ro',
-  isa => 'ArrayRef[ArrayRef[Num]]'
-);
-
 has spacing => ( is => 'ro', isa => 'Num' );
 
 =head1 NAME
@@ -169,80 +164,7 @@ sub _lerp {
 
 # }}}
 
-sub generate {
-}
-
-# {{{ facets
-#
-#   4 -- 5
-#  /|   /|
-# 0 -- 1 |
-# | 6 -| 7
-# |/   |/
-# 2 -- 3
-#
-#  0  1    2  3    4  5
-#  6  7    8  9   10 11
-#
-#
-# 12 13   14 15   16 17
-# 18 19   20 21   22 23
-#
-#
-# 24 25   26 27   28 29
-# 30 31   32 33   34 35
-#
-
-sub facets {
-  my $self = shift;
-  my ( $v ) = @_;
-
-  my @facets = (
-    [ 0, 1, 7, 6 ],
-    [ 2, 3, 9, 8 ],
-    [ 4, 5, 11, 10 ],
-
-    [ 12, 13, 19, 18 ],
-    [ 14, 15, 21, 20 ],
-    [ 16, 17, 23, 22 ],
-
-    [ 24, 25, 31, 30 ],
-    [ 26, 27, 33, 32 ],
-    [ 28, 29, 35, 34 ],
-  );
-
-  my @plane_verts;
-  $plane_verts[ 0 ][ 0 ] = $v->[ 0 ];
-  $plane_verts[ 0 ][ 5 ] = $v->[ 1 ];
-  $plane_verts[ 5 ][ 0 ] = $v->[ 2 ];
-  $plane_verts[ 5 ][ 5 ] = $v->[ 3 ];
-
-  my @v02 = $self->_lerp( $plane_verts[ 0 ][ 0 ], $plane_verts[ 5 ][ 0 ] );
-  my @v13 = $self->_lerp( $plane_verts[ 0 ][ 5 ], $plane_verts[ 5 ][ 5 ] );
-
-  for my $idx ( 1 .. 4 ) {
-    $plane_verts[$idx][ 0 ] = $v02[ $idx - 1 ];
-    $plane_verts[$idx][ 5 ] = $v13[ $idx - 1 ];
-  }
-
-  for my $idx ( 0 .. 5 ) {
-    @{ $plane_verts[ $idx ] }[ 1 .. 4 ] =
-       $self->_lerp( $plane_verts[ $idx ][ 0 ], $plane_verts[ $idx ][ 5 ] );
-  }
-
-  my @flattened;
-  for my $y ( 0 .. 5 ) {
-    for my $x ( 0 .. 5 ) {
-      push @flattened, $plane_verts[ $x ][ $y ];
-    }
-  }
-
-  return ( \@facets, \@flattened );
-}
-
-# }}}
-
-# {{{ cubies
+# {{{ generate
 #
 #   4 -- 5
 #  /|   /|
@@ -273,16 +195,15 @@ sub facets {
 #
 
 my @delta = (
-  [ 0, 1, 7, 6 ],
+  [ 0,  1,  7,  6  ],
   [ 36, 42, 43, 37 ],
-  [ 1, 37, 43, 7 ],
-  [ 0, 6, 42, 36 ],
-  [ 0, 36, 37, 1 ],
-  [ 6, 42, 43, 7 ],
+  [ 1,  37, 43, 7  ],
+  [ 0,  6,  42, 36 ],
+  [ 0,  36, 37, 1  ],
+  [ 6,  42, 43, 7  ]
 );
 
 sub _to_cubie {
-  my $self = shift;
   my ( $idx ) = @_;
   my @temp;
   for my $face ( 0 .. 5 ) {
@@ -342,39 +263,28 @@ sub _lerp_plane {
   # [5][0] X X X X [5][5]
 }
 
-sub _debug_plane {
-  my ($cube,$plane) = @_;
+my @corners = (
+  0, 2, 4,
+  12, 14, 16,
+  24, 26, 28,
 
-  for my $y ( 0 .. 5 ) {
-    for my $x ( 0 .. 5 ) {
-      print defined $cube->[$plane][$y][$x] ? 'X' : '.';
-    }
-    print "\n";
-  }
+  72, 74, 76,
+  84, 86, 88,
+  96, 98, 100,
+
+  144, 146, 148,
+  156, 158, 160,
+  168, 170, 172
+);
+
+my @cubies;
+for my $corner ( @corners ) {
+  push @cubies, _to_cubie( $corner );
 }
 
-sub cubies {
+sub generate {
   my $self = shift;
   my ( $v ) = @_;
-
-  my @corners = (
-    0, 2, 4,
-    12, 14, 16,
-    24, 26, 28,
-
-    72, 74, 76,
-    84, 86, 88,
-    96, 98, 100,
-
-    144, 146, 148,
-    156, 158, 160,
-    168, 170, 172
-  );
-
-  my @cubies;
-  for my $corner ( @corners ) {
-    push @cubies, $self->_to_cubie( $corner );
-  }
 
   my @cube_verts;
   $cube_verts[ 0 ][ 0 ][ 0 ] = $v->[ 0 ];
@@ -414,8 +324,6 @@ sub cubies {
       }
     }
   }
-#_debug_plane(\@cube_verts, 4);
-#exit 0;
 
   my @flattened;
   for my $z ( 0 .. 5 ) {
@@ -425,9 +333,6 @@ sub cubies {
       }
     }
   }
-#use YAML;die Dump(\@flattened);
-#$use YAML;die Dump(\@cubies);
-#$die scalar @cubies;
 
   return ( \@cubies, \@flattened );
 }
